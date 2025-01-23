@@ -7,9 +7,11 @@ import { motion } from "framer-motion"
 import { ThemeToggle } from "./components/theme-toggle"
 import { EmailDisplay } from "./components/email-display"
 import { ProcessingState } from "./components/processing-state"
-import { useState } from "react"
+import { useState,useRef } from "react"
 import { ThemeProvider } from "./components/theme-provider"
+import llama from "@/assets/llamaImg.webp"
 import axios from 'axios'
+import toast from "react-hot-toast"
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -29,16 +31,52 @@ function App() {
   const [generatedEmail, setGeneratedEmail] = useState<{ email: string; subject: string } | null>(null)
   const [file, setFile] = useState<any>(null);
   const [jd_link,setJd] = useState<string>("")
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const handleFileChange = (event:any) => {
+    console.log("File Changed");
     console.log(event.target.files[0]);
     setFile(event.target.files[0]);
+    event.target.value = "";
+  };
+  const resetFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset the file input
+    }
+  };
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile) {
+      console.log("File Dropped");
+      console.log(droppedFile);
+      setFile(droppedFile);
+      resetFileInput(); // Reset the input after processing
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
   };
   function isValidUrl(value:string):boolean {
     try {
       if(value=="")return true
-      new URL(value);
+      const url = new URL(value);
+      console.log(url)
+      if (url.hostname.includes("www.linkedin.com")) {
+        toast.error("Linkedin URL not allowed")
+        return false;
+      }
       return true;
     } catch (err) {
+      toast.error("Please enter correct value of URL")
       return false;
     }
   }
@@ -46,11 +84,10 @@ function App() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!file) {
-      alert("Please select a file first!");
+      toast.error("Please select a file first!");
       return;
     }
     if(!isValidUrl(jd_link)){
-      alert("Please enter correct value of URL")
       return;
     }
     setIsProcessing(true)
@@ -59,7 +96,7 @@ function App() {
     formData.append("file", file);
     try {
       
-      const response = await axios.post("http://localhost:5000/upload", formData, {
+      const response = await axios.post("https://cold-email-backend.onrender.com/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           "JdLink":jd_link
@@ -70,9 +107,14 @@ function App() {
         subject: email?.subject,
         email: email?.content
         })
-      setIsProcessing(false)
+      
     } catch (error:any) {
       alert("Error uploading file: " + error?.response?.data?.error || error?.message);
+      
+    } 
+    finally{
+      setFile(null)
+      setJd("")
       setIsProcessing(false)
     }
     
@@ -118,13 +160,22 @@ function App() {
                     Generate Perfect Cold Emails
                   </motion.h1>
                   <motion.p
+                    className="text-sm md:text-base text-primary/80 font-medium mt-2"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                  >
+                    Powered by LLaMA
+                  </motion.p>
+                  <motion.p
                     className="max-w-[600px] text-gray-500 md:text-xl dark:text-gray-400"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
                   >
-                    Upload your resume, paste the job description URL, and get a personalized cold email in seconds.
-                    Stand out from the crowd with AI-powered email generation.
+                    Upload your resume, paste the job description URL, and let our friendly neighborhood LLaMA 🦙 craft you
+                    a perfect cold email. Stand out from the crowd with AI-powered email
+                    generation that's more intelligent than your average camelid.
                   </motion.p>
                 </div>
                 <motion.div
@@ -133,12 +184,18 @@ function App() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
                 >
-                  <Button className="inline-flex items-center justify-center text-lg" size="lg">
+                  <Button
+                    className="inline-flex items-center justify-center text-lg"
+                    size="lg"
+                    onClick={() => {
+                      document.getElementById("create-email-section")?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      })
+                    }}
+                  >
                     Get Started
                     <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                  <Button variant="outline" size="lg" className="text-lg">
-                    View Examples
                   </Button>
                 </motion.div>
               </motion.div>
@@ -153,7 +210,7 @@ function App() {
                   alt="Email Generation Illustration"
                   className="relative mx-auto aspect-video overflow-hidden rounded-xl object-cover object-center sm:w-full lg:order-last shadow-2xl"
                   height={620}
-                  src="/placeholder.svg?height=620&width=1100&text=AI+Email+Generation&fontSize=64&background=%230EA5E9&foreground=%23FFFFFF"
+                  src={llama}
                   width={1100}
                 />
               </motion.div>
@@ -164,6 +221,7 @@ function App() {
         {/* Main Form Section */}
         <section className="w-full py-12 md:py-24 lg:py-32">
           <motion.div
+            id="create-email-section"
             className="container px-4 md:px-6"
             variants={stagger}
             initial="initial"
@@ -190,9 +248,14 @@ function App() {
                               Upload Resume
                             </Label>
                             <motion.div
-                              className="flex items-center justify-center w-full"
-                              whileHover={{ scale: 1.01 }}
-                              whileTap={{ scale: 0.99 }}
+                              className={`flex items-center justify-center w-full h-64 border-2 rounded-xl cursor-pointer transition-colors duration-200 ${
+                                isDragOver
+                                  ? "border-primary bg-gray-100 dark:bg-gray-900"
+                                  : "border-dashed bg-gray-50/50 dark:bg-gray-950/50 hover:bg-gray-100/50 dark:hover:bg-gray-900/50"
+                              }`}
+                              onDrop={handleDrop}
+                              onDragOver={handleDragOver}
+                              onDragLeave={handleDragLeave}
                             >
                               <label
                                 htmlFor="resume-upload"
@@ -206,9 +269,9 @@ function App() {
                                     <span className="font-semibold">Click to upload</span> or drag and drop
                                   </p>
                                   }
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">{file? file.name : "PDF, DOCX (MAX. 5MB)"}</p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{file ? file.name : "PDF, DOCX (MAX. 5MB)"}</p>
                                 </div>
-                                <input id="resume-upload" type="file" className="hidden" accept=".pdf,.docx" onChange={handleFileChange}/>
+                                <input id="resume-upload" type="file" className="hidden" accept=".pdf,.docx" onChange={handleFileChange} ref={fileInputRef}/>
                               </label>
                             </motion.div>
                           </div>

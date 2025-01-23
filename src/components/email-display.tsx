@@ -29,7 +29,7 @@ export function EmailDisplay({ email, subject }: EmailDisplayProps) {
         </div>
         <div className="space-y-2">
           <h3 className="font-semibold">Body:</h3>
-          <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md whitespace-pre-wrap">{email}</div>
+          <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md whitespace-pre-wrap max-h-[245px] overflow-scroll">{email}</div>
         </div>
       </CardContent>
       <CardFooter>
